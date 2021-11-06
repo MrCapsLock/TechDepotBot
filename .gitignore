@@ -1,0 +1,17 @@
+
+# Created by https://www.toptal.com/developers/gitignore/api/nim
+# Edit at https://www.toptal.com/developers/gitignore?templates=nim
+
+### Nim ###
+nimcache/
+nimblecache/
+htmldocs/
+
+# End of https://www.toptal.com/developers/gitignore/api/nim
+
+# Secrets
+secret.key
+channel.id
+
+# db
+depot.db
