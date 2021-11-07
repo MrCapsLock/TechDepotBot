@@ -15,3 +15,7 @@ channel.id
 
 # db
 depot.db
+
+pat.secret
+
+TechDepotBot
