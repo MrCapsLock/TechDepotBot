@@ -12,4 +12,4 @@ const helpTemplate* = """/register to get new posts automatically
 """
 const alreadyRegisteredTemplate* = """Already registered!"""
 const registerTemplate* = """Registration completed."""
-const unregisterTemplate* = """Unregistration successfully!"""
+const unregisterTemplate* = """Unregistered successfully."""
