@@ -26,6 +26,9 @@ proc createDB(): Future[bool] {.async.} =
     author  VARCHAR(63),
     date    DATE
   )""")
+  db.exec(sql"""CREATE TABLE IF NOT EXISTS categories (
+    name    VARCHAR(63) NOT NULL
+  )""")
 
 proc broadcastHandler(b: Telebot, post: string): Future[bool] {.async.} =
   for user in db.fastRows(sql"SELECT * FROM users"):
@@ -66,6 +69,18 @@ proc unregisterHandler(b: Telebot, c: Command): Future[bool] {.gcsafe, async.} =
           replyToMessageId = c.message.messageId,
       parseMode = "markdown")
 
+proc categoryHandler(b: Telebot, c: Command): Future[bool] {.async.} =
+  echo(c.params)
+# var categories = ""
+# for category in db.fastRows(sql"SELECT * FROM categories"):
+#   categories.add(category[0])
+# discard b.sendMessage(c.message.chat.id, categories,
+#         replyToMessageId = c.message.messageId,
+#     parseMode = "markdown")
+#     var postText = fmt("""*Title:* [{post.title}]({post.link})
+# *Author:* `{post.author}`
+# *Publish date:* {post.pubDate}""")
+#     discard b.sendMessage(c.message.chat.id, postText, parseMode = "markdown")
 
 proc postsHandler(b: Telebot, c: Command): Future[bool] {.async.} =
   let posts = waitFor apiCall("dev.to")
@@ -75,9 +90,8 @@ proc postsHandler(b: Telebot, c: Command): Future[bool] {.async.} =
 *Publish date:* {post.pubDate}""")
     discard b.sendMessage(c.message.chat.id, postText, parseMode = "markdown")
 
-
 proc initScheduler(bot: TeleBot): Future[bool] {.async.} =
-  scheduler postGetter:
+  scheduler devto:
     every(seconds = 120, id = "devto", async = true):
       let posts = waitFor apiCall("dev.to")
       for post in posts:
@@ -85,13 +99,32 @@ proc initScheduler(bot: TeleBot): Future[bool] {.async.} =
         if postRow == @["", "", "", "", ""]:
           var postText = fmt("""*Title:* [{post.title}]({post.link})
 *Author:* `{post.author}`
-*Publish date:* {post.pubDate}""")
+*Publish date:* {post.pubDate}
+*Source*: `dev.to`""")
           db.exec(sql"INSERT INTO posts (title, url, author, date) VALUES (?, ?, ?, ?)",
             post.title, post.link, post.author, post.pubDate)
           discard waitFor broadcastHandler(bot, postText)
           discard waitFor sendToChannelHandler(bot, postText)
 
-  waitFor postGetter.start()
+  scheduler mediumcom:
+    every(seconds = 120, id = "mediumcom", async = true):
+      let tags = @["flutter", "devops", "python", "php", "golang"]
+      for tag in tags:
+        let posts = waitFor apiCall(fmt("medium.com/{tag}"))
+        for post in posts:
+          let postRow = db.getRow(sql"SELECT * FROM posts WHERE url = ?", post.link)
+          if postRow == @["", "", "", "", ""]:
+            var postText = fmt("""*Title:* [{post.title}]({post.link})
+*Publish date:* {post.pubDate}
+*Source*: `medium.com`
+#{tag}""")
+            db.exec(sql"INSERT INTO posts (title, url, author, date) VALUES (?, ?, ?, ?)",
+              post.title, post.link, post.author, post.pubDate)
+            discard waitFor broadcastHandler(bot, postText)
+            discard waitFor sendToChannelHandler(bot, postText)
+
+  waitFor devto.start()
+  waitFor mediumcom.start()
 
 
 # TODO: Fix signal catching
@@ -120,6 +153,7 @@ when isMainModule:
   bot.onCommand("help", helpHandler)
   bot.onCommand("register", registerHandler)
   bot.onCommand("unregister", unregisterHandler)
+  bot.onCommand("categories", categoryHandler)
   bot.onCommand("posts", postsHandler)
 
   bot.startWebhook("secret", "https://example.com/secret")
