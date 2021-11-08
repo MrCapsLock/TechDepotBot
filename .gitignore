@@ -19,3 +19,6 @@ depot.db
 pat.secret
 
 TechDepotBot
+src/channel_develop.id
+src/secret_develop.key
+depot_develop.db
